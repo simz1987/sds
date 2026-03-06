@@ -4,14 +4,13 @@ import pandas as pd
 st.set_page_config(page_title="One-Click Portal Generator", layout="wide")
 
 st.title("⚡ One-Click Portal Generator")
-st.write("Upload your Summary report. The app will automatically translate the codes, remove duplicate re-dispatches, and give you the exact text to paste, perfectly separated by Load Number!")
+st.write("Upload your Summary report. The app will automatically translate the codes and separate them by Load Number.")
 
 # ==========================================
 # 🛑 YOUR PRODUCT DICTIONARY 🛑
 # Replace the lines below with your giant generated list!
 # ==========================================
-PRODUCT_MAPPING = {
-    "1841": "184105",
+   "1841": "184105",
     "2624": "",
     "2625": "",
     "2627": "",
@@ -486,10 +485,13 @@ if summary_file:
             # Decode the uploaded file in memory
             summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
             
-            # ✨ NEW: A master dictionary to hold the LATEST data for each customer
-            master_data = {} 
+            extracted_data = []
             current_customer_ref = "UNKNOWN"
             current_load_number = "UNKNOWN"
+            
+            # Track duplicates for the warning system
+            seen_customers = set()
+            duplicate_customers = set()
             
             # The Scanner
             for line in summary_text:
@@ -497,34 +499,27 @@ if summary_file:
                         
                 if "Load Number:" in parts:
                     idx = parts.index("Load Number:")
-                    if idx + 1 < len(parts): current_load_number = parts[idx + 1]
+                    if idx + 1 < len(parts): 
+                        current_load_number = parts[idx + 1]
 
                 if "Customer Ref:" in parts:
                     idx = parts.index("Customer Ref:")
                     if idx + 1 < len(parts): 
                         current_customer_ref = parts[idx + 1]
-                        # ✨ THE MAGIC TRICK: Wipe the slate clean for this customer!
-                        # If they appeared earlier in the file, their old data is instantly deleted.
-                        master_data[current_customer_ref] = []
+                        
+                        # ✨ THE NEW TRICK: Log it to warn the user, but don't delete anything!
+                        if current_customer_ref in seen_customers and current_customer_ref != "UNKNOWN":
+                            duplicate_customers.add(current_customer_ref)
+                        seen_customers.add(current_customer_ref)
                         
                 if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
                     if parts[2].replace('.', '', 1).isdigit(): 
-                        row_data = {
+                        extracted_data.append({
                             "CustomerCode": current_customer_ref,
                             "LoadNumber": current_load_number,
                             "ProductCode": parts[0],
                             "Cases": parts[2]
-                        }
-                        # Add the product to this customer's fresh list
-                        if current_customer_ref in master_data:
-                            master_data[current_customer_ref].append(row_data)
-                        else:
-                            master_data[current_customer_ref] = [row_data]
-            
-            # Now flatten our clean, duplicate-free data back into a single list
-            extracted_data = []
-            for rows in master_data.values():
-                extracted_data.extend(rows)
+                        })
             
             grouped_results = {}
             
@@ -554,7 +549,12 @@ if summary_file:
             if not grouped_results:
                 st.error("Could not find any matching product data. Check your Summary format.")
             else:
-                st.success("File processed successfully! Duplicates removed. Click the copy icon in the top right of each box to copy.")
+                st.success("File processed successfully! Click the copy icon in the top right of each box to copy.")
+                
+                # ✨ Trigger the visual warning if a duplicate was found!
+                if duplicate_customers:
+                    warning_text = ", ".join(duplicate_customers)
+                    st.warning(f"⚠️ **HEADS UP:** The following Customer Refs appear multiple times in this report: **{warning_text}**. Please double check which lines you want to paste!")
                 
                 # Display results beautifully separated by load
                 for load, results in grouped_results.items():
