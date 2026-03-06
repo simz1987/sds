@@ -10,7 +10,7 @@ st.write("Upload your Summary report. The app will automatically translate the c
 # 🛑 YOUR PRODUCT DICTIONARY 🛑
 # Replace the lines below with your giant generated list!
 # ==========================================
-   "1841": "184105",
+    "1841": "184105",
     "2624": "",
     "2625": "",
     "2627": "",
@@ -564,3 +564,4 @@ if summary_file:
 
         except Exception as e:
             st.error(f"An unexpected error occurred: {e}")
+
