@@ -486,32 +486,32 @@ if summary_file:
             # Decode the uploaded file in memory
             summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
             
+            # --- PASS 1: Find the Duplicates ---
+            # We count how many times the "Customer Ref" header appears.
+            customer_counts = {}
+            for line in summary_text:
+                parts = [p.strip() for p in line.split(',')]
+                if "Customer Ref:" in parts:
+                    idx = parts.index("Customer Ref:")
+                    if idx + 1 < len(parts):
+                        c_ref = parts[idx+1]
+                        customer_counts[c_ref] = customer_counts.get(c_ref, 0) + 1
+            
+            # --- PASS 2: Extract the Data ---
             extracted_data = []
             current_customer_ref = "UNKNOWN"
             current_load_number = "UNKNOWN"
             
-            # Track duplicates for the warning system
-            seen_customers = set()
-            duplicate_customers = set()
-            
-            # The Scanner
             for line in summary_text:
                 parts = [p.strip() for p in line.split(',')]
                         
                 if "Load Number:" in parts:
                     idx = parts.index("Load Number:")
-                    if idx + 1 < len(parts): 
-                        current_load_number = parts[idx + 1]
+                    if idx + 1 < len(parts): current_load_number = parts[idx + 1]
 
                 if "Customer Ref:" in parts:
                     idx = parts.index("Customer Ref:")
-                    if idx + 1 < len(parts): 
-                        current_customer_ref = parts[idx + 1]
-                        
-                        # ✨ THE NEW TRICK: Log it to warn the user, but don't delete anything!
-                        if current_customer_ref in seen_customers and current_customer_ref != "UNKNOWN":
-                            duplicate_customers.add(current_customer_ref)
-                        seen_customers.add(current_customer_ref)
+                    if idx + 1 < len(parts): current_customer_ref = parts[idx + 1]
                         
                 if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
                     if parts[2].replace('.', '', 1).isdigit(): 
@@ -522,7 +522,8 @@ if summary_file:
                             "Cases": parts[2]
                         })
             
-            grouped_results = {}
+            grouped_clean = {}
+            grouped_dupes = {}
             
             # Process the data using your Dictionary
             for row in extracted_data:
@@ -542,28 +543,41 @@ if summary_file:
                 
                 final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
                 
-                if load_num not in grouped_results:
-                    grouped_results[load_num] = []
-                grouped_results[load_num].append(final_string)
+                # 🛑 THE ROUTER: Send to Clean Load OR the Quarantine Zone
+                if customer_counts.get(portal_cust, 1) > 1:
+                    if portal_cust not in grouped_dupes:
+                        grouped_dupes[portal_cust] = []
+                    grouped_dupes[portal_cust].append(final_string)
+                else:
+                    if load_num not in grouped_clean:
+                        grouped_clean[load_num] = []
+                    grouped_clean[load_num].append(final_string)
             
-            # The Webpage Output
-            if not grouped_results:
+            # --- THE WEBPAGE OUTPUT ---
+            if not grouped_clean and not grouped_dupes:
                 st.error("Could not find any matching product data. Check your Summary format.")
             else:
-                st.success("File processed successfully! Click the copy icon in the top right of each box to copy.")
                 
-                # ✨ Trigger the visual warning if a duplicate was found!
-                if duplicate_customers:
-                    warning_text = ", ".join(duplicate_customers)
-                    st.warning(f"⚠️ **HEADS UP:** The following Customer Refs appear multiple times in this report: **{warning_text}**. Please double check which lines you want to paste!")
+                # 1. Show the Quarantine Zone FIRST
+                if grouped_dupes:
+                    st.error("🚨 DUPLICATE CUSTOMERS DETECTED (QUARANTINE ZONE)")
+                    st.write("These customers were dispatched multiple times. **They have been removed from the main loads below.** Please review their codes, copy the correct ones, and paste them manually.")
+                    
+                    for cust, results in grouped_dupes.items():
+                        st.warning(f"**Customer {cust}**")
+                        st.code("\n".join(results), language="text")
+                        
+                    st.markdown("---")
                 
-                # Display results beautifully separated by load
-                for load, results in grouped_results.items():
-                    st.subheader(f"🚚 LOAD {load}")
-                    final_text_block = "\n".join(results)
-                    st.code(final_text_block, language="text")
+                # 2. Show the Clean, Safe Loads
+                if grouped_clean:
+                    st.success("✅ CLEAN LOADS (SAFE TO PASTE)")
+                    st.write("No duplicates here! Click the copy icon in the top right to grab the whole load.")
+                    
+                    for load, results in grouped_clean.items():
+                        st.subheader(f"🚚 LOAD {load}")
+                        final_text_block = "\n".join(results)
+                        st.code(final_text_block, language="text")
 
         except Exception as e:
             st.error(f"An unexpected error occurred: {e}")
-
-
