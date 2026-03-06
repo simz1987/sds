@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="SDS Converter", layout="wide")
+st.set_page_config(page_title="One-Click Portal Generator", layout="wide")
 
 # ==========================================
 # 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
@@ -9,7 +9,7 @@ st.set_page_config(page_title="SDS Converter", layout="wide")
 def check_password():
     def password_entered():
         # Change "MyCompany123" to whatever password you want!
-        if st.session_state["password"] == "Dovecote060326":
+        if st.session_state["password"] == "MyCompany123":
             st.session_state["password_correct"] = True
             del st.session_state["password"] 
         else:
@@ -26,15 +26,16 @@ def check_password():
 
 # If the password is correct, run the rest of the app!
 if check_password():
+    
+    # 🛑 Notice how EVERYTHING below here is indented by 4 spaces! 🛑
+    st.title("⚡ One-Click Portal Generator")
+    st.write("Upload your Summary report. The app will automatically translate the codes and remove exact duplicate lines.")
 
-st.title("⚡ SDS Converter")
-st.write("Upload your Summary report. The app will automatically translate the codes and separate them by Load Number.")
-
-# ==========================================
-# 🛑 YOUR PRODUCT DICTIONARY 🛑
-# Replace the lines below with your giant generated list!
-# ==========================================
-PRODUCT_MAPPING = {    
+    # ==========================================
+    # 🛑 YOUR PRODUCT DICTIONARY 🛑
+    # Replace the lines below with your giant generated list!
+    # ==========================================
+    PRODUCT_MAPPING =  {
     "1841": "184105",
     "2624": "",
     "2625": "",
@@ -498,86 +499,84 @@ PRODUCT_MAPPING = {
     "951502": "95150201",
     "910218": "91021801",
 }
-# ==========================================
+    }
+    # ==========================================
 
-st.markdown("---")
+    st.markdown("---")
 
-summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv", "xlsx"])
+    summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv", "xlsx"])
 
-if summary_file:
-    with st.spinner("Processing your data..."):
-        try:
-            # Decode the uploaded file in memory
-            summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
-            
-            extracted_data = []
-            current_customer_ref = "UNKNOWN"
-            current_load_number = "UNKNOWN"
-            
-            # The Scanner
-            for line in summary_text:
-                parts = [p.strip() for p in line.split(',')]
-                        
-                if "Load Number:" in parts:
-                    idx = parts.index("Load Number:")
-                    if idx + 1 < len(parts): 
-                        current_load_number = parts[idx + 1]
-
-                if "Customer Ref:" in parts:
-                    idx = parts.index("Customer Ref:")
-                    if idx + 1 < len(parts): 
-                        current_customer_ref = parts[idx + 1]
-                        
-                if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
-                    if parts[2].replace('.', '', 1).isdigit(): 
-                        extracted_data.append({
-                            "CustomerCode": current_customer_ref,
-                            "LoadNumber": current_load_number,
-                            "ProductCode": parts[0],
-                            "Cases": parts[2]
-                        })
-            
-            grouped_results = {}
-            
-            # Process the data using your Dictionary
-            for row in extracted_data:
-                portal_cust = str(row["CustomerCode"]).strip()
-                load_num = str(row["LoadNumber"]).strip()
-                raw_prod = str(row["ProductCode"]).strip()
+    if summary_file:
+        with st.spinner("Processing your data..."):
+            try:
+                # Decode the uploaded file in memory
+                summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
                 
-                portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
+                extracted_data = []
+                current_customer_ref = "UNKNOWN"
+                current_load_number = "UNKNOWN"
                 
-                if portal_prod == "" or portal_prod == "nan" or portal_prod == "None":
-                    portal_prod = f"0{raw_prod}01"
+                # The Scanner
+                for line in summary_text:
+                    parts = [p.strip() for p in line.split(',')]
+                            
+                    if "Load Number:" in parts:
+                        idx = parts.index("Load Number:")
+                        if idx + 1 < len(parts): 
+                            current_load_number = parts[idx + 1]
+
+                    if "Customer Ref:" in parts:
+                        idx = parts.index("Customer Ref:")
+                        if idx + 1 < len(parts): 
+                            current_customer_ref = parts[idx + 1]
+                            
+                    if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
+                        if parts[2].replace('.', '', 1).isdigit(): 
+                            extracted_data.append({
+                                "CustomerCode": current_customer_ref,
+                                "LoadNumber": current_load_number,
+                                "ProductCode": parts[0],
+                                "Cases": parts[2]
+                            })
+                
+                grouped_results = {}
+                
+                # Process the data using your Dictionary
+                for row in extracted_data:
+                    portal_cust = str(row["CustomerCode"]).strip()
+                    load_num = str(row["LoadNumber"]).strip()
+                    raw_prod = str(row["ProductCode"]).strip()
                     
-                try:
-                    cases = str(int(float(row['Cases'])))
-                except ValueError:
-                    cases = "0"
-                
-                final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
-                
-                if load_num not in grouped_results:
-                    grouped_results[load_num] = []
+                    portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
                     
-                # ✨ THE EXACT MATCH FILTER ✨
-                # We only add the line if this exact combination of Customer|Product|Cases isn't already in the list!
-                if final_string not in grouped_results[load_num]:
-                    grouped_results[load_num].append(final_string)
-            
-            # The Webpage Output
-            if not grouped_results:
-                st.error("Could not find any matching product data. Check your Summary format.")
-            else:
-                st.success("✅ File processed successfully! Exact duplicates have been filtered out.")
+                    if portal_prod == "" or portal_prod == "nan" or portal_prod == "None":
+                        portal_prod = f"0{raw_prod}01"
+                        
+                    try:
+                        cases = str(int(float(row['Cases'])))
+                    except ValueError:
+                        cases = "0"
+                    
+                    final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
+                    
+                    if load_num not in grouped_results:
+                        grouped_results[load_num] = []
+                        
+                    # ✨ THE EXACT MATCH FILTER ✨
+                    if final_string not in grouped_results[load_num]:
+                        grouped_results[load_num].append(final_string)
                 
-                # Display results beautifully separated by load
-                for load, results in grouped_results.items():
-                    st.subheader(f"🚚 LOAD {load}")
-                    final_text_block = "\n".join(results)
-                    st.code(final_text_block, language="text")
+                # The Webpage Output
+                if not grouped_results:
+                    st.error("Could not find any matching product data. Check your Summary format.")
+                else:
+                    st.success("✅ File processed successfully! Exact duplicates have been filtered out.")
+                    
+                    # Display results beautifully separated by load
+                    for load, results in grouped_results.items():
+                        st.subheader(f"🚚 LOAD {load}")
+                        final_text_block = "\n".join(results)
+                        st.code(final_text_block, language="text")
 
-        except Exception as e:
-            st.error(f"An unexpected error occurred: {e}")
-
-
+            except Exception as e:
+                st.error(f"An unexpected error occurred: {e}")
