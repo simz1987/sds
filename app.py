@@ -502,7 +502,16 @@ if check_password():
     # ==========================================
     # (End of your dictionary)
 
-    st.markdown("---")
+   st.markdown("---")
+
+    # ✨ NEW: The Command Center Toggle
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("⚙️ Grouping Options")
+        grouping_method = st.radio("How should the app separate the boxes?", [
+            "1. By Load Number (Merges times together)", 
+            "2. By Exact Time (Splits separate trailers)"
+        ])
 
     summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv", "xlsx"])
 
@@ -521,21 +530,17 @@ if check_password():
                 for line in summary_text:
                     parts = [p.strip() for p in line.split(',')]
                             
-                    # ✨ NEW: Capture the Dispatch Time!
                     if "Time:" in parts:
                         idx = parts.index("Time:")
-                        if idx + 1 < len(parts): 
-                            current_time = parts[idx + 1]
+                        if idx + 1 < len(parts): current_time = parts[idx + 1]
 
                     if "Load Number:" in parts:
                         idx = parts.index("Load Number:")
-                        if idx + 1 < len(parts): 
-                            current_load_number = parts[idx + 1]
+                        if idx + 1 < len(parts): current_load_number = parts[idx + 1]
 
                     if "Customer Ref:" in parts:
                         idx = parts.index("Customer Ref:")
-                        if idx + 1 < len(parts): 
-                            current_customer_ref = parts[idx + 1]
+                        if idx + 1 < len(parts): current_customer_ref = parts[idx + 1]
                             
                     if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
                         if parts[2].replace('.', '', 1).isdigit(): 
@@ -568,8 +573,11 @@ if check_password():
                     
                     final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
                     
-                    # ✨ NEW: Group by Time AND Load Number!
-                    group_key = f"{dispatch_time} (Load {load_num})"
+                    # ✨ NEW: The Router Brain
+                    if "By Load Number" in grouping_method:
+                        group_key = f"Load {load_num}"
+                    else:
+                        group_key = f"{dispatch_time} (Load {load_num})"
                     
                     if group_key not in grouped_results:
                         grouped_results[group_key] = []
@@ -584,12 +592,33 @@ if check_password():
                 else:
                     st.success("✅ File processed successfully! Exact duplicates have been filtered out.")
                     
-                    # Display results separated by Time and Load
+                    # Display results separated
                     for group_name, results in grouped_results.items():
-                        st.subheader(f"⏱️ Dispatch: {group_name}")
+                        st.subheader(f"🚚 {group_name}")
                         final_text_block = "\n".join(results)
                         st.code(final_text_block, language="text")
+                        
+                    # ==========================================
+                    # 🧲 THE COMBINER TOOL
+                    # ==========================================
+                    st.markdown("---")
+                    st.subheader("🧲 The Combiner (Fix Human Errors)")
+                    st.write("Did a worker accidentally split a single trailer into multiple loads? Select them below to instantly merge them into one clean box.")
+                    
+                    selected_loads = st.multiselect("Select boxes to merge:", list(grouped_results.keys()))
+                    
+                    if selected_loads:
+                        merged_list = []
+                        for group in selected_loads:
+                            for item in grouped_results[group]:
+                                # Keep the exact match filter running on the merged list!
+                                if item not in merged_list:
+                                    merged_list.append(item)
+                                    
+                        st.success(f"✅ Successfully merged: {', '.join(selected_loads)}")
+                        st.code("\n".join(merged_list), language="text")
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
