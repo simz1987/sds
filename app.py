@@ -9,7 +9,7 @@ st.set_page_config(page_title="One-Click Portal Generator", layout="wide")
 def check_password():
     def password_entered():
         # Change "MyCompany123" to whatever password you want!
-        if st.session_state["password"] == "MyCompany123":
+        if st.session_state["password"] == "Dovecote060326":
             st.session_state["password_correct"] = True
             del st.session_state["password"] 
         else:
@@ -579,4 +579,5 @@ if check_password():
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
