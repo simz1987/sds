@@ -502,7 +502,7 @@ if check_password():
     # ==========================================
     # (End of your dictionary)
 
-   st.markdown("---")
+    st.markdown("---")
 
     # ✨ NEW: The Command Center Toggle
     col1, col2 = st.columns(2)
@@ -620,5 +620,6 @@ if check_password():
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
 
