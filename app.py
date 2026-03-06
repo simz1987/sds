@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="One-Click Portal Generator", layout="wide")
+st.set_page_config(page_title="SDS Portal Generator", layout="wide")
 
 # ==========================================
 # 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
@@ -28,7 +28,7 @@ def check_password():
 if check_password():
     
     # 🛑 Notice how EVERYTHING below here is indented by 4 spaces! 🛑
-    st.title("⚡ One-Click Portal Generator")
+    st.title("⚡ SDS Portal Generator")
     st.write("Upload your Summary report. The app will automatically translate the codes and remove exact duplicate lines.")
 
     # ==========================================
@@ -620,6 +620,7 @@ if check_password():
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
 
 
