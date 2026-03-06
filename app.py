@@ -3,6 +3,30 @@ import pandas as pd
 
 st.set_page_config(page_title="SDS Converter", layout="wide")
 
+# ==========================================
+# 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
+# ==========================================
+def check_password():
+    def password_entered():
+        # Change "MyCompany123" to whatever password you want!
+        if st.session_state["password"] == "Dovecote060326":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"] 
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("🔒 Enter Password to Access the App", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("🔒 Enter Password to Access the App", type="password", on_change=password_entered, key="password")
+        st.error("😕 Incorrect password")
+        return False
+    return True
+
+# If the password is correct, run the rest of the app!
+if check_password():
+
 st.title("⚡ SDS Converter")
 st.write("Upload your Summary report. The app will automatically translate the codes and separate them by Load Number.")
 
@@ -555,4 +579,5 @@ if summary_file:
 
         except Exception as e:
             st.error(f"An unexpected error occurred: {e}")
+
 
