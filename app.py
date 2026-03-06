@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="One-Click Portal Generator", layout="wide")
+st.set_page_config(page_title="SDS Converter", layout="wide")
 
-st.title("⚡ One-Click Portal Generator")
+st.title("⚡ SDS Converter")
 st.write("Upload your Summary report. The app will automatically translate the codes and separate them by Load Number.")
 
 # ==========================================
@@ -555,3 +555,4 @@ if summary_file:
 
         except Exception as e:
             st.error(f"An unexpected error occurred: {e}")
+
