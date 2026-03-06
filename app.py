@@ -548,8 +548,9 @@ if check_password():
                     
                     portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
                     
-                    if portal_prod == "" or portal_prod == "nan" or portal_prod == "None":
-                        portal_prod = f"0{raw_prod}01"
+                   if portal_prod == "" or portal_prod == "nan" or portal_prod == "None":
+                        # .zfill(6) automatically adds zeros to the front ONLY if it's shorter than 6 digits!
+                        portal_prod = f"{raw_prod.zfill(6)}01"
                         
                     try:
                         cases = str(int(float(row['Cases'])))
@@ -579,5 +580,6 @@ if check_password():
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
 
