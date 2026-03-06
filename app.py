@@ -501,7 +501,7 @@ if check_password():
     }
     # ==========================================
 
-    st.markdown("---")
+ st.markdown("---")
 
     summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv", "xlsx"])
 
@@ -512,6 +512,7 @@ if check_password():
                 summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
                 
                 extracted_data = []
+                current_time = "UNKNOWN"
                 current_customer_ref = "UNKNOWN"
                 current_load_number = "UNKNOWN"
                 
@@ -519,6 +520,12 @@ if check_password():
                 for line in summary_text:
                     parts = [p.strip() for p in line.split(',')]
                             
+                    # ✨ NEW: Capture the Dispatch Time!
+                    if "Time:" in parts:
+                        idx = parts.index("Time:")
+                        if idx + 1 < len(parts): 
+                            current_time = parts[idx + 1]
+
                     if "Load Number:" in parts:
                         idx = parts.index("Load Number:")
                         if idx + 1 < len(parts): 
@@ -532,6 +539,7 @@ if check_password():
                     if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
                         if parts[2].replace('.', '', 1).isdigit(): 
                             extracted_data.append({
+                                "Time": current_time,
                                 "CustomerCode": current_customer_ref,
                                 "LoadNumber": current_load_number,
                                 "ProductCode": parts[0],
@@ -540,10 +548,11 @@ if check_password():
                 
                 grouped_results = {}
                 
-              # Process the data using your Dictionary
+                # Process the data using your Dictionary
                 for row in extracted_data:
                     portal_cust = str(row["CustomerCode"]).strip()
                     load_num = str(row["LoadNumber"]).strip()
+                    dispatch_time = str(row["Time"]).strip()
                     raw_prod = str(row["ProductCode"]).strip()
                     
                     portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
@@ -558,12 +567,15 @@ if check_password():
                     
                     final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
                     
-                    if load_num not in grouped_results:
-                        grouped_results[load_num] = []
+                    # ✨ NEW: Group by Time AND Load Number!
+                    group_key = f"{dispatch_time} (Load {load_num})"
+                    
+                    if group_key not in grouped_results:
+                        grouped_results[group_key] = []
                         
                     # ✨ THE EXACT MATCH FILTER ✨
-                    if final_string not in grouped_results[load_num]:
-                        grouped_results[load_num].append(final_string)
+                    if final_string not in grouped_results[group_key]:
+                        grouped_results[group_key].append(final_string)
                 
                 # The Webpage Output
                 if not grouped_results:
@@ -571,16 +583,11 @@ if check_password():
                 else:
                     st.success("✅ File processed successfully! Exact duplicates have been filtered out.")
                     
-                    # Display results beautifully separated by load
-                    for load, results in grouped_results.items():
-                        st.subheader(f"🚚 LOAD {load}")
+                    # Display results separated by Time and Load
+                    for group_name, results in grouped_results.items():
+                        st.subheader(f"⏱️ Dispatch: {group_name}")
                         final_text_block = "\n".join(results)
                         st.code(final_text_block, language="text")
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
-
-
-
-
-
