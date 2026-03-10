@@ -597,15 +597,7 @@ if check_password():
                     if final_string not in grouped_results[group_key]:
                         grouped_results[group_key].append(final_string)
                     
-                    # ✨ NEW: The Router Brain
-                    if "By Load Number" in grouping_method:
-                        group_key = f"Load {load_num}"
-                    else:
-                        group_key = f"{dispatch_time} (Load {load_num})"
-                    
-                    if group_key not in grouped_results:
-                        grouped_results[group_key] = []
-                        
+                                         
                     # ✨ THE EXACT MATCH FILTER ✨
                     if final_string not in grouped_results[group_key]:
                         grouped_results[group_key].append(final_string)
@@ -644,6 +636,7 @@ if check_password():
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
 
 
