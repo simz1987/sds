@@ -31,6 +31,20 @@ def process_sds_data(df):
     
     return df, generator_total
 
+    # Calculate what the Generator sees
+generator_total = df['Cases'].sum()
+
+# Display the comparison (This is what makes it "appear")
+if system_total_input > 0:
+    diff = generator_total - system_total_input
+    
+    if diff == 0:
+        st.success(f"✅ **Perfect Match!** Generator total is exactly {generator_total}")
+    elif diff > 0:
+        st.warning(f"⚠️ **Discrepancy:** Generator is {diff} cases HIGHER than your system ({generator_total} total)")
+    else:
+        st.error(f"❌ **Discrepancy:** Generator is {abs(diff)} cases LOWER than your system ({generator_total} total)")
+
 # --- OUTPUT GENERATOR ---
 # (Your existing code to format the 'CUST|PROD|CASES' strings goes here)
 
@@ -661,6 +675,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
