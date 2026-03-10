@@ -4,36 +4,33 @@ import pandas as pd
 # 1. (Your existing code for file upload and sidebar filters goes here)
 # ...
 
-# 2. THE "BRAINS" - PUT THE AUTO-CLEAN CODE HERE
+# 2. THE "BRAINS" - AUTO-CLEAN LOGIC
 if 'filtered_df' in locals() and not filtered_df.empty:
     
-    # This is the "Magic" line that fixes the re-despatch errors automatically
-    # It looks for the same Customer/Product and only keeps the final entry
-    processed_df = filtered_df.drop_duplicates(
+    # This line is now correctly closed with )
+    processed_df = filtered_df.drop_duplicates(subset=['Customer Ref', 'Product Code'], keep='last')
+    
     # Calculate how many rows we started with vs how many we have now
     original_count = len(filtered_df)
     clean_count = len(processed_df)
     removed_count = original_count - clean_count
    
-if removed_count > 0:
-    st.info(f"💡 **Auto-Clean active:** Removed {removed_count} duplicate re-despatch lines to match your system total.")
+    # This info box only appears if duplicates were found
+    if removed_count > 0:
+        st.info(f"💡 **Auto-Clean active:** Removed {removed_count} duplicate re-despatch lines to match your system total.")
 
-    # 3. THE SUMMARY TABLE (This shows you the totals to check against your system)
+    # 3. THE SUMMARY TABLE
     st.subheader("📦 Verified Order Totals")
     summary = processed_df.groupby('Customer Ref')['Cases'].sum().reset_index()
     summary.columns = ['Customer Reference', 'Total Cases']
-    
-    # We use st.dataframe or st.table so it's easy to read
     st.table(summary)
 
-    # 4. THE OUTPUT (This generates the strings you copy to the portal)
+    # 4. THE OUTPUT (The strings)
     st.divider()
     st.subheader("📋 SDS Portal Strings")
     
     for customer in processed_df['Customer Ref'].unique():
         cust_data = processed_df[processed_df['Customer Ref'] == customer]
-        
-        # Build the strings for this specific customer
         strings = [f"'{row['Customer Ref']}|{row['Product Code']}|{row['Cases']}'" for _, row in cust_data.iterrows()]
         
         st.write(f"**Copy/Paste strings for {customer}:**")
@@ -669,6 +666,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
