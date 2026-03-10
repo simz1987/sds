@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 
+# ADD THIS LINE RIGHT HERE:
+st.set_page_config(page_title="SDS Portal Generator", layout="wide")
+
 # ==========================================
 # 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
 # ==========================================
@@ -180,4 +183,5 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
