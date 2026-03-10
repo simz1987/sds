@@ -10,15 +10,11 @@ if 'filtered_df' in locals() and not filtered_df.empty:
     # This is the "Magic" line that fixes the re-despatch errors automatically
     # It looks for the same Customer/Product and only keeps the final entry
     processed_df = filtered_df.drop_duplicates(
-        subset=['Customer Ref', 'Product Code'], 
-        keep='last'
-    )
-
     # Calculate how many rows we started with vs how many we have now
     original_count = len(filtered_df)
     clean_count = len(processed_df)
     removed_count = original_count - clean_count
-
+   
 if removed_count > 0:
     st.info(f"💡 **Auto-Clean active:** Removed {removed_count} duplicate re-despatch lines to match your system total.")
 
@@ -673,6 +669,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
