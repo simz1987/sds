@@ -551,6 +551,14 @@ if check_password():
                                 "ProductCode": parts[0],
                                 "Cases": parts[2]
                             })
+
+                # --- NEW: Depot Mapping ---
+                DEPOT_NAMES = {
+                    "A": "Leyland",
+                    "V": "Aylesford",
+                    "H": "Bracknell",
+                    "P": "Brinklow"
+                }
                 
                 grouped_results = {}
                 
@@ -560,6 +568,10 @@ if check_password():
                     load_num = str(row["LoadNumber"]).strip()
                     dispatch_time = str(row["Time"]).strip()
                     raw_prod = str(row["ProductCode"]).strip()
+
+                    # ✨ NEW: Identify the Depot
+                    first_letter = portal_cust[0].upper() if portal_cust else "?"
+                    depot_name = DEPOT_NAMES.get(first_letter, "Unknown/Other")
                     
                     portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
                     
@@ -572,6 +584,18 @@ if check_password():
                         cases = "0"
                     
                     final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
+
+                    # ✨ NEW: Create a Group Key that includes the Depot
+                    if "By Load Number" in grouping_method:
+                        group_key = f"{depot_name} - Load {load_num}"
+                    else:
+                        group_key = f"{depot_name} - {dispatch_time} (Load {load_num})"
+                    
+                    if group_key not in grouped_results:
+                        grouped_results[group_key] = []
+                        
+                    if final_string not in grouped_results[group_key]:
+                        grouped_results[group_key].append(final_string)
                     
                     # ✨ NEW: The Router Brain
                     if "By Load Number" in grouping_method:
@@ -620,6 +644,7 @@ if check_password():
 
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
+
 
 
 
