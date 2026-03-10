@@ -70,8 +70,8 @@ if check_password():
     with col1:
         st.subheader("⚙️ Processing Settings")
         auto_clean = st.checkbox("Auto-Combine Split Loads & Duplicates", value=True)
-        # 🆕 CHANGED: Now we look for a time gap! (Default is 45 mins)
-        trailer_gap = st.number_input("⏱️ Auto-Trailer Split Gap (Mins, 0=Off)", min_value=0, value=45)
+        # 🆕 CHANGED: Now we look for a time gap! (Default is 30 mins)
+        trailer_gap = st.number_input("⏱️ Auto-Trailer Split Gap (Mins, 0=Off)", min_value=0, value=30)
     
     with col2:
         st.subheader("📍 Depot Filter")
@@ -200,6 +200,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
