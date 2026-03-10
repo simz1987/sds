@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# ADD THIS LINE RIGHT HERE:
+# 1. MUST BE FIRST: Wide mode for better layout
 st.set_page_config(page_title="SDS Portal Generator", layout="wide")
 
 # ==========================================
@@ -14,23 +14,20 @@ def check_password():
             del st.session_state["password"] 
         else:
             st.session_state["password_correct"] = False
-
     if "password_correct" not in st.session_state:
-        st.text_input("🔒 Enter Password to Access the App", type="password", on_change=password_entered, key="password")
+        st.text_input("🔒 Enter Password", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        st.text_input("🔒 Enter Password to Access the App", type="password", on_change=password_entered, key="password")
+        st.text_input("🔒 Enter Password", type="password", on_change=password_entered, key="password")
         st.error("😕 Incorrect password")
         return False
     return True
 
 if check_password():
     st.title("⚡ SDS Portal Generator")
-    st.write("Upload your Summary report. The app will automatically translate codes, remove duplicates, and show totals.")
-
-    # ==========================================
-    # 🛑 YOUR PRODUCT DICTIONARY 🛑
-    # ==========================================
+    
+    # --- PRODUCT DICTIONARY ---
+    # (Abbreviated here for space, keep your full one in your actual file!)
     PRODUCT_MAPPING = {
         "1841": "00184105", "3897": "00389701", "4242": "00424205", "9747": "00974702",
         "11192": "01119204", "15596": "01559605", "15790": "01579003", "16491": "01649106",
@@ -69,189 +66,94 @@ if check_password():
     # 1. COMMAND CENTER
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("⚙️ Settings")
-        grouping_method = st.radio("Separation Method:", ["1. By Load Number", "2. By Exact Time"])
-        auto_clean = st.checkbox("Auto-Remove Duplicates", value=True)
-        
-        # 🆕 ADD THIS LINE: The Trailer Target Input
-        target_trailers = st.number_input("🚚 Target Trailers (0 = Off)", min_value=0, value=0, step=1)
+        st.subheader("⚙️ Processing Settings")
+        auto_clean = st.checkbox("Auto-Combine Split Loads & Duplicates", value=True)
+        target_trailers = st.number_input("🚚 Target Trailers (0 = Default)", min_value=0, value=0)
     
     with col2:
         st.subheader("📍 Depot Filter")
         depot_choice = st.selectbox("Select Site:", ["All Depots", "Bracknell (H)", "Leyland (A)", "Aylesford (V)", "Brinklow (P)"])
 
-    depot_map = {"Bracknell (H)": "H", "Leyland (A)": "A", "Aylesford (V)": "V", "Brinklow (P)": "P"}
     summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv"])
 
     if summary_file:
         try:
-            summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
-            extracted_data = []
-            current_time, current_customer_ref, current_load_number = "UNKNOWN", "UNKNOWN", "UNKNOWN"
-            
             # --- THE SCANNER ---
+            summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
+            raw_rows = []
+            curr_time, curr_cust, curr_load = "00:00", "UNKNOWN", "0"
+            
             for line in summary_text:
                 parts = [p.strip() for p in line.split(',')]
-                if "Time:" in parts: current_time = parts[parts.index("Time:") + 1]
-                if "Load Number:" in parts: current_load_number = parts[parts.index("Load Number:") + 1]
-                if "Customer Ref:" in parts: current_customer_ref = parts[parts.index("Customer Ref:") + 1]
+                if "Time:" in parts: curr_time = parts[parts.index("Time:") + 1]
+                if "Load Number:" in parts: curr_load = parts[parts.index("Load Number:") + 1]
+                if "Customer Ref:" in parts: curr_cust = parts[parts.index("Customer Ref:") + 1]
                 
                 if len(parts) >= 3 and parts[0] not in ["Product Code", ""] and parts[2].replace('.', '', 1).isdigit():
-                    raw_prod = parts[0]
-                    # Map the product code
-                    if raw_prod == "506679":
-                        p_code, p_cases = "*", 0  # Changed to 0 so the math doesn't crash!
-                    else:
-                        p_code = PRODUCT_MAPPING.get(raw_prod, f"{raw_prod.zfill(6)}01")
-                        try:
-                            p_cases = int(float(parts[2]))
-                        except:
-                            p_cases = 0
-
-                    extracted_data.append({
-                        "Customer Ref": current_customer_ref,
-                        "Product Code": p_code,
-                        "Cases": p_cases,
-                        "Load": current_load_number,
-                        "Time": current_time
+                    raw_rows.append({
+                        "Customer Ref": curr_cust,
+                        "Product Code": parts[0],
+                        "Cases": int(float(parts[2])),
+                        "Load": curr_load,
+                        "Time": curr_time
                     })
 
-            # Convert to DataFrame for easier handling
-            df = pd.DataFrame(extracted_data)
-
-            # Apply Depot Filter
+            df = pd.DataFrame(raw_rows)
+            
+            # Filter Depot
+            depot_map = {"Bracknell (H)": "H", "Leyland (A)": "A", "Aylesford (V)": "V", "Brinklow (P)": "P"}
             if depot_choice != "All Depots":
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
-       # --- THE HYBRID AUTO-CLEAN ---
+                # --- THE HYBRID BRAINS ---
                 if auto_clean:
-                    original_len = len(df)
-                    
-                    # STEP 1: The Shield (Catches identical double-prints)
-                    # Drops rows if Cust, Prod AND Cases are exactly the same
+                    # Step A: Remove exact double-prints
                     df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
-                    
-                    removed = original_len - len(df)
-                    if removed > 0:
-                        st.warning(f"🧹 Blocked {removed} identical 'double-print' lines.")
-
-                    # STEP 2: The Combiner (Catches genuine top-up split loads)
-                    # Adds cases together if the cases are different but products match
+                    # Step B: Combine split loads (Add cases together)
                     df = df.groupby(['Customer Ref', 'Product Code'], as_index=False).agg({
-                        'Cases': 'sum',
-                        'Load': 'last',
-                        'Time': 'last'
+                        'Cases': 'sum', 'Load': 'last', 'Time': 'last'
                     })
 
-                    # STEP 3: The Sorter (Puts everything back in Load order!)
-                    # This converts Load to a real number (so Load 2 comes before Load 10) and sorts it.
-                    df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
-                    df = df.sort_values(by=['Customer Ref', 'Sort_Load', 'Time', 'Product Code'])
-
-                    # STEP 4: Smart Trailer Consolidator (Fixed for Math Accuracy)
-                    if target_trailers > 0:
-                        # 1. Identify unique 'Dispatch Events' (One time per Load per Customer)
-                        events = df.groupby(['Customer Ref', 'Sort_Load'], as_index=False)['Time'].first()
-                        events = events.sort_values(['Customer Ref', 'Sort_Load'])
+                # --- TRAILER CONSOLIDATOR ---
+                df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
+                if target_trailers > 0:
+                    events = df.groupby(['Customer Ref', 'Sort_Load'], as_index=False)['Time'].first()
+                    if len(events) > target_trailers:
+                        events['Mins'] = events['Time'].apply(lambda x: int(x.split(':')[0])*60 + int(x.split(':')[1]) if ':' in str(x) else 0)
+                        events = events.sort_values('Mins')
+                        events['Gap'] = events['Mins'].diff().fillna(0).apply(lambda x: x + 1440 if x < 0 else x)
                         
-                        if len(events) > target_trailers:
-                            # 2. Calculate time gaps (in minutes)
-                            events['Mins'] = events['Time'].apply(
-                                lambda x: int(str(x).split(':')[0])*60 + int(str(x).split(':')[1]) if ':' in str(x) else 0
-                            )
-                            events['Gap'] = events['Mins'].diff().fillna(0)
-                            events['Gap'] = events['Gap'].apply(lambda x: x + 1440 if x < 0 else x)
-                            
-                            # 3. Find the biggest gaps to split into Trailers
-                            splits_needed = target_trailers - 1
-                            split_indices = events.nlargest(splits_needed, 'Gap').index.tolist()
-                            
-                            trailer_num = 1
-                            assignments = []
-                            for idx, row in events.iterrows():
-                                if idx in split_indices:
-                                    trailer_num += 1
-                                assignments.append(trailer_num)
-                            
-                            events['Trailer'] = assignments
+                        splits = events.nlargest(target_trailers-1, 'Gap').index.tolist()
+                        t_num = 1
+                        assigns = []
+                        for idx, _ in events.iterrows():
+                            if idx in splits: t_num += 1
+                            assigns.append(t_num)
+                        events['Trailer'] = assigns
+                        
+                        df = df.merge(events[['Customer Ref', 'Sort_Load', 'Trailer']], on=['Customer Ref', 'Sort_Load'])
+                        df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({'Cases': 'sum', 'Time': 'first'})
+                        df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
+                        df['Sort_Load'] = df['Trailer']
 
-                            # 4. Merge the assignment back safely (using BOTH Customer and Load as keys)
-                            df = df.merge(events[['Customer Ref', 'Sort_Load', 'Trailer']], on=['Customer Ref', 'Sort_Load'], how='left')
-                            
-                            # 5. Re-group into the final Trailer totals
-                            df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({
-                                'Cases': 'sum',
-                                'Time': 'first' 
-                            })
-                            
-                            # 6. Update display names
-                            df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
-                            df['Sort_Load'] = df['Trailer']
-                            st.success(f"🎯 Auto-Consolidated into {target_trailers} Trailers.")
-                    
-             # --- 📦 THE SUMMARY TABLE ---
+                # --- FINAL OUTPUT ---
+                df = df.sort_values(['Customer Ref', 'Sort_Load', 'Product Code'])
+                
                 st.subheader("📦 Verified Order Totals")
-                summary = df.groupby('Customer Ref')['Cases'].apply(lambda x: sum(val for val in x if val != "*")).reset_index()
-                summary.columns = ['Customer Reference', 'Total Cases']
+                summary = df.groupby('Customer Ref')['Cases'].sum().reset_index()
                 st.table(summary)
 
-                # --- 📋 SDS PORTAL STRINGS (Restored Grouping) ---
                 st.divider()
                 st.subheader("📋 SDS Portal Strings")
-                
-                DEPOT_NAMES = {"A": "Leyland", "V": "Aylesford", "H": "Bracknell", "P": "Brinklow"}
-                grouped_results = {}
-                
-                for _, row in df.iterrows():
-                    cust = row['Customer Ref']
-                    first_letter = cust[0].upper() if cust else "?"
-                    depot_name = DEPOT_NAMES.get(first_letter, "Unknown")
-                    load_num = row['Load']
-                    dispatch_time = row['Time']
-                    
-                    # Apply your chosen grouping method
-                    if "By Load Number" in grouping_method:
-                        group_key = f"📍 {depot_name} - Load {load_num}"
-                    else:
-                        group_key = f"📍 {depot_name} - {dispatch_time} (Load {load_num})"
-                        
-                    # Secretly put the * back for the special product
-                    print_cases = "*" if row['Product Code'] == "*" else row['Cases']
-                    final_string = f"'{cust}|{row['Product Code']}|{print_cases}'"
-                    
-                    if group_key not in grouped_results:
-                        grouped_results[group_key] = []
-                    if final_string not in grouped_results[group_key]:
-                        grouped_results[group_key].append(final_string)
-                        
-                # Display the grouped strings
-                for group_name, results in grouped_results.items():
-                    st.subheader(group_name)
-                    st.code("\n".join(results), language="text")
-                    
-                # --- 🧲 THE COMBINER TOOL (Restored) ---
-                st.markdown("---")
-                st.subheader("🧲 The Combiner")
-                selected_loads = st.multiselect("Merge specific loads:", list(grouped_results.keys()))
-                if selected_loads:
-                    merged = []
-                    for g in selected_loads:
-                        for item in grouped_results[g]:
-                            if item not in merged: merged.append(item)
-                    st.code("\n".join(merged), language="text")
-
-            else:
-                st.warning("No data matches your current filters.")
+                for grp_name, grp_df in df.groupby(['Customer Ref', 'Load']):
+                    st.write(f"**📍 {grp_name[0]} - {grp_name[1]}**")
+                    strings = []
+                    for _, row in grp_df.iterrows():
+                        p_code = PRODUCT_MAPPING.get(row['Product Code'], f"{row['Product Code'].zfill(6)}01")
+                        p_cases = "*" if p_code == "*" else row['Cases']
+                        strings.append(f"'{row['Customer Ref']}|{p_code}|{p_cases}'")
+                    st.code("\n".join(strings), language="text")
 
         except Exception as e:
             st.error(f"Error: {e}")
-
-
-
-
-
-
-
-
-
