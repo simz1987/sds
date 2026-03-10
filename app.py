@@ -15,9 +15,9 @@ if 'filtered_df' in locals() and not filtered_df.empty:
     )
 
     # Calculate how many rows we started with vs how many we have now
-original_count = len(filtered_df)
-clean_count = len(processed_df)
-removed_count = original_count - clean_count
+    original_count = len(filtered_df)
+    clean_count = len(processed_df)
+    removed_count = original_count - clean_count
 
 if removed_count > 0:
     st.info(f"💡 **Auto-Clean active:** Removed {removed_count} duplicate re-despatch lines to match your system total.")
@@ -673,6 +673,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
