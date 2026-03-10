@@ -165,8 +165,17 @@ if check_password():
                     st.write(f"**{header}**")
                     strings = []
                     for _, row in grp_df.iterrows():
-                        p_code = PRODUCT_MAPPING.get(row['Product Code'], f"{str(row['Product Code']).zfill(6)}01")
-                        p_cases = "*" if p_code == "*" else row['Cases']
+                        raw_prod = str(row['Product Code']).strip()
+                        
+                        # ✨ THE PERMANENT SPECIAL RULE FOR 506679
+                        if raw_prod == "506679":
+                            p_code = "*"
+                            p_cases = "*"
+                        else:
+                            # Standard dictionary mapping for everything else
+                            p_code = PRODUCT_MAPPING.get(raw_prod, f"{raw_prod.zfill(6)}01")
+                            p_cases = row['Cases']
+                            
                         strings.append(f"'{row['Customer Ref']}|{p_code}|{p_cases}'")
                     st.code("\n".join(strings), language="text")
 
@@ -175,3 +184,4 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
