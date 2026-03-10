@@ -502,7 +502,7 @@ if check_password():
     # ==========================================
     # (End of your dictionary)
 
-   st.markdown("---")
+    st.markdown("---")
 
     # ✨ THE NEW COMMAND CENTER
     col1, col2, col3 = st.columns(3)
@@ -581,6 +581,7 @@ if check_password():
                     for item in grouped_results[g]:
                         if item not in merged: merged.append(item)
                 st.code("\n".join(merged), language="text")
+
 
 
 
