@@ -149,49 +149,46 @@ if check_password():
                     df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
                     df = df.sort_values(by=['Customer Ref', 'Sort_Load', 'Time', 'Product Code'])
 
-                    # STEP 4: Smart Trailer Consolidator
-                    # If the user asks for a specific number of trailers, group the loads by time gaps!
+                    # STEP 4: Smart Trailer Consolidator (Fixed for Math Accuracy)
                     if target_trailers > 0:
-                        # Grab just the unique loads in order
-                        unique_loads = df[['Sort_Load', 'Time']].drop_duplicates().sort_values('Sort_Load')
+                        # 1. Identify unique 'Dispatch Events' (One time per Load per Customer)
+                        events = df.groupby(['Customer Ref', 'Sort_Load'], as_index=False)['Time'].first()
+                        events = events.sort_values(['Customer Ref', 'Sort_Load'])
                         
-                        # Only consolidate if there are more loads than requested trailers
-                        if len(unique_loads) > target_trailers:
-                            
-                            # Calculate time in minutes from midnight
-                            unique_loads['Mins'] = unique_loads['Time'].apply(
+                        if len(events) > target_trailers:
+                            # 2. Calculate time gaps (in minutes)
+                            events['Mins'] = events['Time'].apply(
                                 lambda x: int(str(x).split(':')[0])*60 + int(str(x).split(':')[1]) if ':' in str(x) else 0
                             )
+                            events['Gap'] = events['Mins'].diff().fillna(0)
+                            events['Gap'] = events['Gap'].apply(lambda x: x + 1440 if x < 0 else x)
                             
-                            # Calculate the gap in minutes between loads (and fix overnight shifts)
-                            unique_loads['Gap'] = unique_loads['Mins'].diff().fillna(0)
-                            unique_loads['Gap'] = unique_loads['Gap'].apply(lambda x: x + 1440 if x < 0 else x)
-                            
-                            # Find the biggest time gaps to know exactly where to split the trailers
+                            # 3. Find the biggest gaps to split into Trailers
                             splits_needed = target_trailers - 1
-                            split_indices = unique_loads.nlargest(splits_needed, 'Gap').index.tolist()
+                            split_indices = events.nlargest(splits_needed, 'Gap').index.tolist()
                             
-                            # Assign loads to their new trailers
                             trailer_num = 1
-                            trailer_assignments = []
-                            for idx, row in unique_loads.iterrows():
+                            assignments = []
+                            for idx, row in events.iterrows():
                                 if idx in split_indices:
                                     trailer_num += 1
-                                trailer_assignments.append(trailer_num)
-                                
-                            unique_loads['Trailer'] = trailer_assignments
+                                assignments.append(trailer_num)
                             
-                            # Merge back into main data and do the math!
-                            df = df.merge(unique_loads[['Sort_Load', 'Trailer']], on='Sort_Load', how='left')
+                            events['Trailer'] = assignments
+
+                            # 4. Merge the assignment back safely (using BOTH Customer and Load as keys)
+                            df = df.merge(events[['Customer Ref', 'Sort_Load', 'Trailer']], on=['Customer Ref', 'Sort_Load'], how='left')
+                            
+                            # 5. Re-group into the final Trailer totals
                             df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({
                                 'Cases': 'sum',
-                                'Time': 'first' # Use the time of the first load on the trailer
+                                'Time': 'first' 
                             })
                             
-                            # Overwrite the Load column so it prints as "Trailer 1" instead of "Load 1"
+                            # 6. Update display names
                             df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
                             df['Sort_Load'] = df['Trailer']
-                            st.success(f"🎯 Auto-Consolidated into {target_trailers} Trailers based on dispatch times!")
+                            st.success(f"🎯 Auto-Consolidated into {target_trailers} Trailers.")
                     
              # --- 📦 THE SUMMARY TABLE ---
                 st.subheader("📦 Verified Order Totals")
@@ -249,6 +246,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
