@@ -502,140 +502,86 @@ if check_password():
     # ==========================================
     # (End of your dictionary)
 
-    st.markdown("---")
+   st.markdown("---")
 
-    # ✨ NEW: The Command Center Toggle
-    col1, col2 = st.columns(2)
+    # ✨ THE NEW COMMAND CENTER
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.subheader("⚙️ Grouping Options")
-        grouping_method = st.radio("How should the app separate the boxes?", [
-            "1. By Load Number (Merges times together)", 
-            "2. By Exact Time (Splits separate trailers)"
+        st.subheader("⚙️ Grouping")
+        grouping_method = st.radio("Separation Method:", [
+            "1. By Load Number", 
+            "2. By Exact Time"
         ])
+    
+    with col2:
+        st.subheader("📍 Depot Filter")
+        depot_choice = st.selectbox("Select Site:", ["All Depots", "Bracknell (H)", "Leyland (A)", "Aylesford (V)", "Brinklow (P)"])
 
-    summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv", "xlsx"])
+    # Mapping for the filter
+    depot_map = {"Bracknell (H)": "H", "Leyland (A)": "A", "Aylesford (V)": "V", "Brinklow (P)": "P"}
+    
+    summary_file = st.file_uploader("Upload Summary Despatch Report (CSV)", type=["csv"])
 
     if summary_file:
-        with st.spinner("Processing your data..."):
+        # (Same scanner logic as before to get extracted_data...)
+        # ... [Your existing CSV line-reading code goes here] ...
+        
+        DEPOT_NAMES = {"A": "Leyland", "V": "Aylesford", "H": "Bracknell", "P": "Brinklow"}
+        grouped_results = {}
+        
+        for row in extracted_data:
+            portal_cust = str(row["CustomerCode"]).strip()
+            first_letter = portal_cust[0].upper() if portal_cust else "?"
+            
+            # ✨ DEPOT FILTER CHECK ✨
+            if depot_choice != "All Depots":
+                if first_letter != depot_map[depot_choice]:
+                    continue # Skip this row if it's not the selected depot
+
+            depot_name = DEPOT_NAMES.get(first_letter, "Unknown")
+            load_num = str(row["LoadNumber"]).strip()
+            dispatch_time = str(row["Time"]).strip()
+            raw_prod = str(row["ProductCode"]).strip()
+            
+            # Product Mapping logic
+            portal_prod = PRODUCT_MAPPING.get(raw_prod, f"{raw_prod.zfill(6)}01")
             try:
-                # Decode the uploaded file in memory
-                summary_text = summary_file.getvalue().decode('utf-8', errors='ignore').split('\n')
-                
-                extracted_data = []
-                current_time = "UNKNOWN"
-                current_customer_ref = "UNKNOWN"
-                current_load_number = "UNKNOWN"
-                
-                # The Scanner
-                for line in summary_text:
-                    parts = [p.strip() for p in line.split(',')]
-                            
-                    if "Time:" in parts:
-                        idx = parts.index("Time:")
-                        if idx + 1 < len(parts): current_time = parts[idx + 1]
+                cases = str(int(float(row['Cases'])))
+            except:
+                cases = "0"
+            
+            final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
+            
+            # Create Group Key
+            if "By Load Number" in grouping_method:
+                group_key = f"📍 {depot_name} - Load {load_num}"
+            else:
+                group_key = f"📍 {depot_name} - {dispatch_time} (Load {load_num})"
+            
+            if group_key not in grouped_results:
+                grouped_results[group_key] = []
+            if final_string not in grouped_results[group_key]:
+                grouped_results[group_key].append(final_string)
 
-                    if "Load Number:" in parts:
-                        idx = parts.index("Load Number:")
-                        if idx + 1 < len(parts): current_load_number = parts[idx + 1]
+        # Output the boxes
+        if not grouped_results:
+            st.warning("No data found for the selected filter.")
+        else:
+            for group_name, results in grouped_results.items():
+                st.subheader(group_name)
+                st.code("\n".join(results), language="text")
 
-                    if "Customer Ref:" in parts:
-                        idx = parts.index("Customer Ref:")
-                        if idx + 1 < len(parts): current_customer_ref = parts[idx + 1]
-                            
-                    if len(parts) >= 3 and parts[0] != "Product Code" and parts[0] != "":
-                        if parts[2].replace('.', '', 1).isdigit(): 
-                            extracted_data.append({
-                                "Time": current_time,
-                                "CustomerCode": current_customer_ref,
-                                "LoadNumber": current_load_number,
-                                "ProductCode": parts[0],
-                                "Cases": parts[2]
-                            })
+            # 🧲 THE COMBINER (Now works on the filtered list!)
+            st.markdown("---")
+            st.subheader("🧲 The Combiner")
+            selected_loads = st.multiselect("Merge specific loads:", list(grouped_results.keys()))
+            if selected_loads:
+                merged = []
+                for g in selected_loads:
+                    for item in grouped_results[g]:
+                        if item not in merged: merged.append(item)
+                st.code("\n".join(merged), language="text")
 
-                # --- NEW: Depot Mapping ---
-                DEPOT_NAMES = {
-                    "A": "Leyland",
-                    "V": "Aylesford",
-                    "H": "Bracknell",
-                    "P": "Brinklow"
-                }
-                
-                grouped_results = {}
-                
-                # Process the data using your Dictionary
-                for row in extracted_data:
-                    portal_cust = str(row["CustomerCode"]).strip()
-                    load_num = str(row["LoadNumber"]).strip()
-                    dispatch_time = str(row["Time"]).strip()
-                    raw_prod = str(row["ProductCode"]).strip()
-
-                    # ✨ NEW: Identify the Depot
-                    first_letter = portal_cust[0].upper() if portal_cust else "?"
-                    depot_name = DEPOT_NAMES.get(first_letter, "Unknown/Other")
-                    
-                    portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
-                    
-                    if portal_prod == "" or portal_prod == "nan" or portal_prod == "None":
-                        portal_prod = f"{raw_prod.zfill(6)}01"
-                        
-                    try:
-                        cases = str(int(float(row['Cases'])))
-                    except ValueError:
-                        cases = "0"
-                    
-                    final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
-
-                    # ✨ NEW: Create a Group Key that includes the Depot
-                    if "By Load Number" in grouping_method:
-                        group_key = f"{depot_name} - Load {load_num}"
-                    else:
-                        group_key = f"{depot_name} - {dispatch_time} (Load {load_num})"
-                    
-                    if group_key not in grouped_results:
-                        grouped_results[group_key] = []
-                        
-                    if final_string not in grouped_results[group_key]:
-                        grouped_results[group_key].append(final_string)
-                    
-                                         
-                    # ✨ THE EXACT MATCH FILTER ✨
-                    if final_string not in grouped_results[group_key]:
-                        grouped_results[group_key].append(final_string)
-                
-                # The Webpage Output
-                if not grouped_results:
-                    st.error("Could not find any matching product data. Check your Summary format.")
-                else:
-                    st.success("✅ File processed successfully! Exact duplicates have been filtered out.")
-                    
-                    # Display results separated
-                    for group_name, results in grouped_results.items():
-                        st.subheader(f"🚚 {group_name}")
-                        final_text_block = "\n".join(results)
-                        st.code(final_text_block, language="text")
-                        
-                    # ==========================================
-                    # 🧲 THE COMBINER TOOL
-                    # ==========================================
-                    st.markdown("---")
-                    st.subheader("🧲 The Combiner (Fix Human Errors)")
-                    st.write("Did a worker accidentally split a single trailer into multiple loads? Select them below to instantly merge them into one clean box.")
-                    
-                    selected_loads = st.multiselect("Select boxes to merge:", list(grouped_results.keys()))
-                    
-                    if selected_loads:
-                        merged_list = []
-                        for group in selected_loads:
-                            for item in grouped_results[group]:
-                                # Keep the exact match filter running on the merged list!
-                                if item not in merged_list:
-                                    merged_list.append(item)
-                                    
-                        st.success(f"✅ Successfully merged: {', '.join(selected_loads)}")
-                        st.code("\n".join(merged_list), language="text")
-
-            except Exception as e:
-                st.error(f"An unexpected error occurred: {e}")
 
 
 
