@@ -100,7 +100,7 @@ if check_password():
                     raw_prod = parts[0]
                     # Map the product code
                     if raw_prod == "506679":
-                        p_code, p_cases = "*", "*"
+                        p_code, p_cases = "*", 0  # Changed to 0 so the math doesn't crash!
                     else:
                         p_code = PRODUCT_MAPPING.get(raw_prod, f"{raw_prod.zfill(6)}01")
                         try:
@@ -219,7 +219,9 @@ if check_password():
                     else:
                         group_key = f"📍 {depot_name} - {dispatch_time} (Load {load_num})"
                         
-                    final_string = f"'{cust}|{row['Product Code']}|{row['Cases']}'"
+                    # Secretly put the * back for the special product
+                    print_cases = "*" if row['Product Code'] == "*" else row['Cases']
+                    final_string = f"'{cust}|{row['Product Code']}|{print_cases}'"
                     
                     if group_key not in grouped_results:
                         grouped_results[group_key] = []
@@ -247,6 +249,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
