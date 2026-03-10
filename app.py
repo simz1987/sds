@@ -141,6 +141,11 @@ if check_password():
                         'Time': 'last'
                     })
 
+                    # STEP 3: The Sorter (Puts everything back in Load order!)
+                    # This converts Load to a real number (so Load 2 comes before Load 10) and sorts it.
+                    df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
+                    df = df.sort_values(by=['Customer Ref', 'Sort_Load', 'Time', 'Product Code'])
+                    
              # --- 📦 THE SUMMARY TABLE ---
                 st.subheader("📦 Verified Order Totals")
                 summary = df.groupby('Customer Ref')['Cases'].apply(lambda x: sum(val for val in x if val != "*")).reset_index()
@@ -195,6 +200,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
