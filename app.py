@@ -31,7 +31,7 @@ def process_sds_data(df):
     
     return df, generator_total
 
-    # Calculate what the Generator sees
+# Calculate what the Generator sees
 generator_total = df['Cases'].sum()
 
 # Display the comparison (This is what makes it "appear")
