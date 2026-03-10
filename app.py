@@ -1,65 +1,45 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="SDS Portal Generator", layout="wide")
-
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("Validation Tools")
-system_total_input = st.sidebar.number_input("Enter Work System Total Cases", min_value=0, value=0)
-filter_duplicates = st.sidebar.checkbox("One-Click Duplicate Removal", value=True, help="Removes identical product/case counts if they appear in multiple loads for the same customer.")
-
-# --- DATA PROCESSING ---
-def process_sds_data(df):
-    # Apply Duplicate Filter if checked
-    if filter_duplicates:
-        # We group by Customer and Product and take the last entry (most recent load)
-        # Or you can use .drop_duplicates() if the rows are identical
-        df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
-
-    # Calculate Totals
-    generator_total = df['Cases'].sum()
+# --- TOP SECTION: THE CHECK ---
+if 'filtered_df' in locals() and not filtered_df.empty:
+    st.subheader("📦 Quick Check: Order Totals")
     
-    # Validation Logic
-    if system_total_input > 0:
-        diff = generator_total - system_total_input
-        if diff == 0:
-            st.success(f"✅ Match! Generator ({generator_total}) matches Work System ({system_total_input})")
-        elif diff > 0:
-            st.warning(f"⚠️ Overcount: Generator is {diff} cases HIGHER than Work System. Check for re-despatches.")
-        else:
-            st.error(f"❌ Undercount: Generator is {abs(diff)} cases LOWER than Work System. Check for missing pages.")
-    
-    return df, generator_total
+    # Checkbox for Duplicate Removal
+    filter_on = st.sidebar.checkbox("One-Click Duplicate Removal", value=True)
 
-# 1. First, make sure your dataframe exists (replace 'df' with whatever your table is called)
-# If you are using the filtered data from your sidebar, it's usually called 'filtered_df'
-if 'filtered_df' in locals():
-    
-    # --- ONE-CLICK DUPLICATE REMOVAL ---
-    if st.sidebar.checkbox("One-Click Duplicate Removal", value=True):
-        # This removes rows where Customer, Product, and Case count are identical
+    if filter_on:
+        # Drops exact duplicates (Cust/Prod/Cases) to fix re-despatch errors
         processed_df = filtered_df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
+        st.sidebar.info("✨ Duplicate filtering is ON")
     else:
         processed_df = filtered_df
+        st.sidebar.warning("⚠️ Showing ALL lines (Duplicates included)")
 
-    # --- CALCULATE THE TOTAL ---
-    generator_total = processed_df['Cases'].sum()
+    # Create the Summary Table
+    summary = processed_df.groupby('Customer Ref')['Cases'].sum().reset_index()
+    summary.columns = ['Customer Reference', 'Total Cases']
+    
+    # Display the table clearly at the top
+    st.table(summary)
 
-    # --- DISPLAY THE VALIDATION BOX ---
-    if system_total_input > 0:
-        diff = generator_total - system_total_input
+    # --- BOTTOM SECTION: THE STRINGS ---
+    st.divider()
+    st.subheader("📋 SDS Portal Strings")
+
+    # This loop generates your 'CUST|PROD|CASES' blocks
+    for customer in processed_df['Customer Ref'].unique():
+        cust_data = processed_df[processed_df['Customer Ref'] == customer]
         
-        if diff == 0:
-            st.success(f"✅ **Perfect Match!** Generator total is exactly {generator_total}")
-        elif diff > 0:
-            st.warning(f"⚠️ **Overcount:** Generator is {diff} cases HIGHER than your system ({generator_total} total)")
-        else:
-            st.error(f"❌ **Discrepancy:** Generator is {abs(diff)} cases LOWER than your system ({generator_total} total)")
-else:
-    st.info("Please upload a file and select a customer to see the validation.")
+        # Format strings: 'CUST|PROD|CASES'
+        strings = [f"'{row['Customer Ref']}|{row['Product Code']}|{row['Cases']}'" for _, row in cust_data.iterrows()]
+        
+        # Display in a code box for easy copying
+        st.write(f"**Strings for {customer}:**")
+        st.code("\n".join(strings), language="text")
 
-# --- OUTPUT GENERATOR ---
-# (Your existing code to format the 'CUST|PROD|CASES' strings goes here)
+else:
+    st.info("Upload your Despatch Report to begin.")
 
 # ==========================================
 # 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
@@ -688,6 +668,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
