@@ -65,12 +65,13 @@ if check_password():
         "999101": "99910103", "93110": "09311003", "382986": "38298601"
     }
 
-    # 1. COMMAND CENTER
+   # 1. COMMAND CENTER
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("⚙️ Processing Settings")
         auto_clean = st.checkbox("Auto-Combine Split Loads & Duplicates", value=True)
-        target_trailers = st.number_input("🚚 Target Trailers (0 = Default Loads)", min_value=0, value=0)
+        # 🆕 CHANGED: Now we look for a time gap! (Default is 45 mins)
+        trailer_gap = st.number_input("⏱️ Auto-Trailer Split Gap (Mins, 0=Off)", min_value=0, value=45)
     
     with col2:
         st.subheader("📍 Depot Filter")
@@ -108,6 +109,23 @@ if check_password():
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
+
+                if not df.empty:
+                # --- 🚨 NEW PRODUCT ALARM 🚨 ---
+                missing_codes = []
+                for code in df['Product Code'].unique():
+                    clean_code = str(code).strip()
+                    stripped_code = clean_code.lstrip('0') # Handles codes like '01841' vs '1841'
+                    
+                    if clean_code not in PRODUCT_MAPPING and stripped_code not in PRODUCT_MAPPING and clean_code != "506679":
+                        missing_codes.append(clean_code)
+                        
+                if missing_codes:
+                    st.error(f"🚨 **WARNING: {len(missing_codes)} UNKNOWN PRODUCT(S) DETECTED!** 🚨\n\n"
+                             f"These codes are not in your dictionary. The app has generated a temporary code for them, "
+                             f"but you should update your Master Dictionary as soon as possible.\n\n"
+                             f"**Missing Codes:** {', '.join(missing_codes)}")
+
                 # --- THE HYBRID BRAINS (Auto-Clean & Combine) ---
                 if auto_clean:
                     # Step A: Delete exact double-prints
@@ -120,31 +138,31 @@ if check_password():
                 # Create the numerical Sort_Load column
                 df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
 
-                # --- SMART TRAILER CONSOLIDATOR ---
-                if target_trailers > 0:
-                    # Look ONLY at the loads, ignore the customer refs for the physical trailer split
+                # --- SMART TRAILER CONSOLIDATOR (Auto-Detect) ---
+                if trailer_gap > 0:
                     events = df.groupby('Sort_Load', as_index=False)['Time'].first()
                     
-                    if len(events) > target_trailers:
-                        events['Mins'] = events['Time'].apply(lambda x: int(str(x).split(':')[0])*60 + int(str(x).split(':')[1]) if ':' in str(x) else 0)
-                        events = events.sort_values('Mins')
-                        events['Gap'] = events['Mins'].diff().fillna(0).apply(lambda x: x + 1440 if x < 0 else x)
-                        
-                        splits = events.nlargest(target_trailers-1, 'Gap').index.tolist() if target_trailers > 1 else []
-                        t_num = 1
-                        assigns = []
-                        for idx, _ in events.iterrows():
-                            if idx in splits: t_num += 1
-                            assigns.append(t_num)
-                        events['Trailer'] = assigns
-                        
-                        # Apply Trailer assignments back to main data safely
-                        df = df.merge(events[['Sort_Load', 'Trailer']], on='Sort_Load')
-                        df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({'Cases': 'sum', 'Time': 'first'})
-                        
-                        # Rename the columns to match what the output expects
-                        df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
-                        df['Sort_Load'] = df['Trailer']
+                    events['Mins'] = events['Time'].apply(lambda x: int(str(x).split(':')[0])*60 + int(str(x).split(':')[1]) if ':' in str(x) else 0)
+                    events = events.sort_values('Mins')
+                    
+                    # Calculate gap between loads (fixes overnight shifts adding 1440 mins)
+                    events['Gap'] = events['Mins'].diff().fillna(0).apply(lambda x: x + 1440 if x < 0 else x)
+                    
+                    t_num = 1
+                    assigns = []
+                    for _, row in events.iterrows():
+                        # If the gap is bigger than our threshold, it's a new trailer!
+                        if row['Gap'] >= trailer_gap:
+                            t_num += 1
+                        assigns.append(t_num)
+                    events['Trailer'] = assigns
+                    
+                    # Apply Trailer assignments back to main data
+                    df = df.merge(events[['Sort_Load', 'Trailer']], on='Sort_Load')
+                    df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({'Cases': 'sum', 'Time': 'first'})
+                    
+                    df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
+                    df['Sort_Load'] = df['Trailer']
 
                 # --- FINAL OUTPUT ---
                 # Sort strictly by the physical Trailer, THEN by Customer
@@ -184,4 +202,5 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
