@@ -109,8 +109,6 @@ if check_password():
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
-
-                if not df.empty:
                 # --- 🚨 NEW PRODUCT ALARM 🚨 ---
                 missing_codes = []
                 for code in df['Product Code'].unique():
@@ -202,5 +200,6 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
