@@ -3,6 +3,37 @@ import pandas as pd
 
 st.set_page_config(page_title="SDS Portal Generator", layout="wide")
 
+# --- SIDEBAR CONTROLS ---
+st.sidebar.header("Validation Tools")
+system_total_input = st.sidebar.number_input("Enter Work System Total Cases", min_value=0, value=0)
+filter_duplicates = st.sidebar.checkbox("One-Click Duplicate Removal", value=True, help="Removes identical product/case counts if they appear in multiple loads for the same customer.")
+
+# --- DATA PROCESSING ---
+def process_sds_data(df):
+    # Apply Duplicate Filter if checked
+    if filter_duplicates:
+        # We group by Customer and Product and take the last entry (most recent load)
+        # Or you can use .drop_duplicates() if the rows are identical
+        df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
+
+    # Calculate Totals
+    generator_total = df['Cases'].sum()
+    
+    # Validation Logic
+    if system_total_input > 0:
+        diff = generator_total - system_total_input
+        if diff == 0:
+            st.success(f"✅ Match! Generator ({generator_total}) matches Work System ({system_total_input})")
+        elif diff > 0:
+            st.warning(f"⚠️ Overcount: Generator is {diff} cases HIGHER than Work System. Check for re-despatches.")
+        else:
+            st.error(f"❌ Undercount: Generator is {abs(diff)} cases LOWER than Work System. Check for missing pages.")
+    
+    return df, generator_total
+
+# --- OUTPUT GENERATOR ---
+# (Your existing code to format the 'CUST|PROD|CASES' strings goes here)
+
 # ==========================================
 # 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
 # ==========================================
@@ -630,6 +661,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
