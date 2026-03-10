@@ -31,19 +31,32 @@ def process_sds_data(df):
     
     return df, generator_total
 
-# Calculate what the Generator sees
-generator_total = df['Cases'].sum()
-
-# Display the comparison (This is what makes it "appear")
-if system_total_input > 0:
-    diff = generator_total - system_total_input
+# 1. First, make sure your dataframe exists (replace 'df' with whatever your table is called)
+# If you are using the filtered data from your sidebar, it's usually called 'filtered_df'
+if 'filtered_df' in locals():
     
-    if diff == 0:
-        st.success(f"✅ **Perfect Match!** Generator total is exactly {generator_total}")
-    elif diff > 0:
-        st.warning(f"⚠️ **Discrepancy:** Generator is {diff} cases HIGHER than your system ({generator_total} total)")
+    # --- ONE-CLICK DUPLICATE REMOVAL ---
+    if st.sidebar.checkbox("One-Click Duplicate Removal", value=True):
+        # This removes rows where Customer, Product, and Case count are identical
+        processed_df = filtered_df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
     else:
-        st.error(f"❌ **Discrepancy:** Generator is {abs(diff)} cases LOWER than your system ({generator_total} total)")
+        processed_df = filtered_df
+
+    # --- CALCULATE THE TOTAL ---
+    generator_total = processed_df['Cases'].sum()
+
+    # --- DISPLAY THE VALIDATION BOX ---
+    if system_total_input > 0:
+        diff = generator_total - system_total_input
+        
+        if diff == 0:
+            st.success(f"✅ **Perfect Match!** Generator total is exactly {generator_total}")
+        elif diff > 0:
+            st.warning(f"⚠️ **Overcount:** Generator is {diff} cases HIGHER than your system ({generator_total} total)")
+        else:
+            st.error(f"❌ **Discrepancy:** Generator is {abs(diff)} cases LOWER than your system ({generator_total} total)")
+else:
+    st.info("Please upload a file and select a customer to see the validation.")
 
 # --- OUTPUT GENERATOR ---
 # (Your existing code to format the 'CUST|PROD|CASES' strings goes here)
@@ -675,6 +688,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
