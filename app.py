@@ -121,10 +121,14 @@ if check_password():
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
-              # --- AUTO-COMBINE LOGIC (Fix for Split Loads) ---
+              ## --- AUTO-COMBINE LOGIC (Fix for Split Loads) ---
                 if auto_clean:
-                    # Instead of deleting duplicates, we ADD the cases together!
-                    df = df.groupby(['Customer Ref', 'Product Code'], as_index=False)['Cases'].sum()
+                    # We group the products and sum the cases, but we tell it to "remember" the last Load and Time!
+                    df = df.groupby(['Customer Ref', 'Product Code'], as_index=False).agg({
+                        'Cases': 'sum',
+                        'Load': 'last',
+                        'Time': 'last'
+                    })
                     st.success("✅ Split loads detected and combined successfully.")
 
              # --- 📦 THE SUMMARY TABLE ---
@@ -181,6 +185,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
