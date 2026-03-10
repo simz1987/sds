@@ -115,30 +115,9 @@ if check_password():
                         'Cases': 'sum', 'Load': 'last', 'Time': 'last'
                     })
 
-                # --- TRAILER CONSOLIDATOR ---
-                df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
-                if target_trailers > 0:
-                    events = df.groupby(['Customer Ref', 'Sort_Load'], as_index=False)['Time'].first()
-                    if len(events) > target_trailers:
-                        events['Mins'] = events['Time'].apply(lambda x: int(x.split(':')[0])*60 + int(x.split(':')[1]) if ':' in str(x) else 0)
-                        events = events.sort_values('Mins')
-                        events['Gap'] = events['Mins'].diff().fillna(0).apply(lambda x: x + 1440 if x < 0 else x)
-                        
-                        splits = events.nlargest(target_trailers-1, 'Gap').index.tolist()
-                        t_num = 1
-                        assigns = []
-                        for idx, _ in events.iterrows():
-                            if idx in splits: t_num += 1
-                            assigns.append(t_num)
-                        events['Trailer'] = assigns
-                        
-                        df = df.merge(events[['Customer Ref', 'Sort_Load', 'Trailer']], on=['Customer Ref', 'Sort_Load'])
-                        df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({'Cases': 'sum', 'Time': 'first'})
-                        df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
-                        df['Sort_Load'] = df['Trailer']
-
                 # --- FINAL OUTPUT ---
-                df = df.sort_values(['Customer Ref', 'Sort_Load', 'Product Code'])
+                # Sort primarily by the Trailer/Load, THEN by the Customer
+                df = df.sort_values(['Sort_Load', 'Customer Ref', 'Product Code'])
                 
                 st.subheader("📦 Verified Order Totals")
                 summary = df.groupby('Customer Ref')['Cases'].sum().reset_index()
@@ -146,11 +125,16 @@ if check_password():
 
                 st.divider()
                 st.subheader("📋 SDS Portal Strings")
-                for grp_name, grp_df in df.groupby(['Customer Ref', 'Load']):
-                    st.write(f"**📍 {grp_name[0]} - {grp_name[1]}**")
+                
+                # Group ONLY by the Load/Trailer Number so everything stays together
+                for sort_val, grp_df in df.groupby('Sort_Load'):
+                    load_name = grp_df['Load'].iloc[0]
+                    header = f"📍 {load_name}" if "Trailer" in str(load_name) else f"📍 Load {load_name}"
+                    
+                    st.write(f"**{header}**")
                     strings = []
                     for _, row in grp_df.iterrows():
-                        p_code = PRODUCT_MAPPING.get(row['Product Code'], f"{row['Product Code'].zfill(6)}01")
+                        p_code = PRODUCT_MAPPING.get(row['Product Code'], f"{str(row['Product Code']).zfill(6)}01")
                         p_cases = "*" if p_code == "*" else row['Cases']
                         strings.append(f"'{row['Customer Ref']}|{p_code}|{p_cases}'")
                     st.code("\n".join(strings), language="text")
