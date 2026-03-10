@@ -126,25 +126,58 @@ if check_password():
                     if removed > 0:
                         st.info(f"💡 Removed {removed} duplicate lines automatically.")
 
-                # --- 📦 THE SUMMARY TABLE ---
+             # --- 📦 THE SUMMARY TABLE ---
                 st.subheader("📦 Verified Order Totals")
                 summary = df.groupby('Customer Ref')['Cases'].apply(lambda x: sum(val for val in x if val != "*")).reset_index()
                 summary.columns = ['Customer Reference', 'Total Cases']
                 st.table(summary)
 
-                # --- 📋 SDS PORTAL STRINGS ---
+                # --- 📋 SDS PORTAL STRINGS (Restored Grouping) ---
                 st.divider()
                 st.subheader("📋 SDS Portal Strings")
                 
-                # Group by your chosen method for display
-                for customer in df['Customer Ref'].unique():
-                    cust_df = df[df['Customer Ref'] == customer]
-                    strings = [f"'{row['Customer Ref']}|{row['Product Code']}|{row['Cases']}'" for _, row in cust_df.iterrows()]
+                DEPOT_NAMES = {"A": "Leyland", "V": "Aylesford", "H": "Bracknell", "P": "Brinklow"}
+                grouped_results = {}
+                
+                for _, row in df.iterrows():
+                    cust = row['Customer Ref']
+                    first_letter = cust[0].upper() if cust else "?"
+                    depot_name = DEPOT_NAMES.get(first_letter, "Unknown")
+                    load_num = row['Load']
+                    dispatch_time = row['Time']
                     
-                    st.write(f"**{customer}**")
-                    st.code("\n".join(strings), language="text")
+                    # Apply your chosen grouping method
+                    if "By Load Number" in grouping_method:
+                        group_key = f"📍 {depot_name} - Load {load_num}"
+                    else:
+                        group_key = f"📍 {depot_name} - {dispatch_time} (Load {load_num})"
+                        
+                    final_string = f"'{cust}|{row['Product Code']}|{row['Cases']}'"
+                    
+                    if group_key not in grouped_results:
+                        grouped_results[group_key] = []
+                    if final_string not in grouped_results[group_key]:
+                        grouped_results[group_key].append(final_string)
+                        
+                # Display the grouped strings
+                for group_name, results in grouped_results.items():
+                    st.subheader(group_name)
+                    st.code("\n".join(results), language="text")
+                    
+                # --- 🧲 THE COMBINER TOOL (Restored) ---
+                st.markdown("---")
+                st.subheader("🧲 The Combiner")
+                selected_loads = st.multiselect("Merge specific loads:", list(grouped_results.keys()))
+                if selected_loads:
+                    merged = []
+                    for g in selected_loads:
+                        for item in grouped_results[g]:
+                            if item not in merged: merged.append(item)
+                    st.code("\n".join(merged), language="text")
+
             else:
                 st.warning("No data matches your current filters.")
 
         except Exception as e:
             st.error(f"Error: {e}")
+
