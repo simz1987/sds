@@ -26,8 +26,10 @@ def check_password():
 if check_password():
     st.title("⚡ SDS Portal Generator")
     
-    # --- PRODUCT DICTIONARY ---
-    # (Abbreviated here for space, keep your full one in your actual file!)
+    # ==========================================
+    # 🛑 YOUR PRODUCT DICTIONARY 🛑
+    # (Replace this small section with your giant list!)
+    # ==========================================
     PRODUCT_MAPPING = {
         "1841": "00184105", "3897": "00389701", "4242": "00424205", "9747": "00974702",
         "11192": "01119204", "15596": "01559605", "15790": "01579003", "16491": "01649106",
@@ -68,7 +70,7 @@ if check_password():
     with col1:
         st.subheader("⚙️ Processing Settings")
         auto_clean = st.checkbox("Auto-Combine Split Loads & Duplicates", value=True)
-        target_trailers = st.number_input("🚚 Target Trailers (0 = Default)", min_value=0, value=0)
+        target_trailers = st.number_input("🚚 Target Trailers (0 = Default Loads)", min_value=0, value=0)
     
     with col2:
         st.subheader("📍 Depot Filter")
@@ -100,23 +102,52 @@ if check_password():
 
             df = pd.DataFrame(raw_rows)
             
-            # Filter Depot
+            # --- APPLY DEPOT FILTER ---
             depot_map = {"Bracknell (H)": "H", "Leyland (A)": "A", "Aylesford (V)": "V", "Brinklow (P)": "P"}
             if depot_choice != "All Depots":
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
-                # --- THE HYBRID BRAINS ---
+                # --- THE HYBRID BRAINS (Auto-Clean & Combine) ---
                 if auto_clean:
-                    # Step A: Remove exact double-prints
+                    # Step A: Delete exact double-prints
                     df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
                     # Step B: Combine split loads (Add cases together)
                     df = df.groupby(['Customer Ref', 'Product Code'], as_index=False).agg({
                         'Cases': 'sum', 'Load': 'last', 'Time': 'last'
                     })
 
+                # Create the numerical Sort_Load column
+                df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
+
+                # --- SMART TRAILER CONSOLIDATOR ---
+                if target_trailers > 0:
+                    # Look ONLY at the loads, ignore the customer refs for the physical trailer split
+                    events = df.groupby('Sort_Load', as_index=False)['Time'].first()
+                    
+                    if len(events) > target_trailers:
+                        events['Mins'] = events['Time'].apply(lambda x: int(str(x).split(':')[0])*60 + int(str(x).split(':')[1]) if ':' in str(x) else 0)
+                        events = events.sort_values('Mins')
+                        events['Gap'] = events['Mins'].diff().fillna(0).apply(lambda x: x + 1440 if x < 0 else x)
+                        
+                        splits = events.nlargest(target_trailers-1, 'Gap').index.tolist() if target_trailers > 1 else []
+                        t_num = 1
+                        assigns = []
+                        for idx, _ in events.iterrows():
+                            if idx in splits: t_num += 1
+                            assigns.append(t_num)
+                        events['Trailer'] = assigns
+                        
+                        # Apply Trailer assignments back to main data safely
+                        df = df.merge(events[['Sort_Load', 'Trailer']], on='Sort_Load')
+                        df = df.groupby(['Customer Ref', 'Product Code', 'Trailer'], as_index=False).agg({'Cases': 'sum', 'Time': 'first'})
+                        
+                        # Rename the columns to match what the output expects
+                        df['Load'] = df['Trailer'].apply(lambda x: f"Trailer {x}")
+                        df['Sort_Load'] = df['Trailer']
+
                 # --- FINAL OUTPUT ---
-                # Sort primarily by the Trailer/Load, THEN by the Customer
+                # Sort strictly by the physical Trailer, THEN by Customer
                 df = df.sort_values(['Sort_Load', 'Customer Ref', 'Product Code'])
                 
                 st.subheader("📦 Verified Order Totals")
@@ -126,7 +157,7 @@ if check_password():
                 st.divider()
                 st.subheader("📋 SDS Portal Strings")
                 
-                # Group ONLY by the Load/Trailer Number so everything stays together
+                # Group by Trailer so all Customers sharing a trailer are lumped together
                 for sort_val, grp_df in df.groupby('Sort_Load'):
                     load_name = grp_df['Load'].iloc[0]
                     header = f"📍 {load_name}" if "Trailer" in str(load_name) else f"📍 Load {load_name}"
@@ -138,6 +169,9 @@ if check_password():
                         p_cases = "*" if p_code == "*" else row['Cases']
                         strings.append(f"'{row['Customer Ref']}|{p_code}|{p_cases}'")
                     st.code("\n".join(strings), language="text")
+
+            else:
+                st.warning("No data found for this selection.")
 
         except Exception as e:
             st.error(f"Error: {e}")
