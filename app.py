@@ -121,15 +121,25 @@ if check_password():
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
-              ## --- AUTO-COMBINE LOGIC (Fix for Split Loads) ---
+       # --- THE HYBRID AUTO-CLEAN ---
                 if auto_clean:
-                    # We group the products and sum the cases, but we tell it to "remember" the last Load and Time!
+                    original_len = len(df)
+                    
+                    # STEP 1: The Shield (Catches identical double-prints)
+                    # Drops rows if Cust, Prod AND Cases are exactly the same
+                    df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
+                    
+                    removed = original_len - len(df)
+                    if removed > 0:
+                        st.warning(f"🧹 Blocked {removed} identical 'double-print' lines.")
+
+                    # STEP 2: The Combiner (Catches genuine top-up split loads)
+                    # Adds cases together if the cases are different but products match
                     df = df.groupby(['Customer Ref', 'Product Code'], as_index=False).agg({
                         'Cases': 'sum',
                         'Load': 'last',
                         'Time': 'last'
                     })
-                    st.success("✅ Split loads detected and combined successfully.")
 
              # --- 📦 THE SUMMARY TABLE ---
                 st.subheader("📦 Verified Order Totals")
@@ -185,6 +195,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
