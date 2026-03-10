@@ -577,7 +577,26 @@ if check_password():
                 except:
                     cases = "0"
                 
-                final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
+                # --- The Product Logic ---
+                raw_prod = str(row["ProductCode"]).strip()
+                
+                # ✨ THE SPECIAL RULE for 506679
+                if raw_prod == "506679":
+                    # For this product, we ignore mapping and cases entirely
+                    final_string = f"'{portal_cust}|*|*'"
+                else:
+                    # Standard logic for everything else
+                    portal_prod = PRODUCT_MAPPING.get(raw_prod, "")
+                    if portal_prod == "" or portal_prod == "nan" or portal_prod == "None":
+                        portal_prod = f"{raw_prod.zfill(6)}01"
+                    
+                    try:
+                        cases = str(int(float(row['Cases'])))
+                    except:
+                        cases = "0"
+                    
+                    # Standard format: 'CUSTOMER|PRODUCT|CASES'
+                    final_string = f"'{portal_cust}|{portal_prod}|{cases}'"
                 
                 # Create Group Key
                 if "By Load Number" in grouping_method:
@@ -611,5 +630,6 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
