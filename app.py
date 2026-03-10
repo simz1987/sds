@@ -1,45 +1,42 @@
 import streamlit as st
 import pandas as pd
 
-# --- TOP SECTION: THE CHECK ---
+# 1. (Your existing code for file upload and sidebar filters goes here)
+# ...
+
+# 2. THE "BRAINS" - PUT THE AUTO-CLEAN CODE HERE
 if 'filtered_df' in locals() and not filtered_df.empty:
-    st.subheader("📦 Quick Check: Order Totals")
     
-    # Checkbox for Duplicate Removal
-    filter_on = st.sidebar.checkbox("One-Click Duplicate Removal", value=True)
+    # This is the "Magic" line that fixes the re-despatch errors automatically
+    # It looks for the same Customer/Product and only keeps the final entry
+    processed_df = filtered_df.drop_duplicates(
+        subset=['Customer Ref', 'Product Code'], 
+        keep='last'
+    )
 
-    if filter_on:
-        # Drops exact duplicates (Cust/Prod/Cases) to fix re-despatch errors
-        processed_df = filtered_df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
-        st.sidebar.info("✨ Duplicate filtering is ON")
-    else:
-        processed_df = filtered_df
-        st.sidebar.warning("⚠️ Showing ALL lines (Duplicates included)")
-
-    # Create the Summary Table
+    # 3. THE SUMMARY TABLE (This shows you the totals to check against your system)
+    st.subheader("📦 Verified Order Totals")
     summary = processed_df.groupby('Customer Ref')['Cases'].sum().reset_index()
     summary.columns = ['Customer Reference', 'Total Cases']
     
-    # Display the table clearly at the top
+    # We use st.dataframe or st.table so it's easy to read
     st.table(summary)
 
-    # --- BOTTOM SECTION: THE STRINGS ---
+    # 4. THE OUTPUT (This generates the strings you copy to the portal)
     st.divider()
     st.subheader("📋 SDS Portal Strings")
-
-    # This loop generates your 'CUST|PROD|CASES' blocks
+    
     for customer in processed_df['Customer Ref'].unique():
         cust_data = processed_df[processed_df['Customer Ref'] == customer]
         
-        # Format strings: 'CUST|PROD|CASES'
+        # Build the strings for this specific customer
         strings = [f"'{row['Customer Ref']}|{row['Product Code']}|{row['Cases']}'" for _, row in cust_data.iterrows()]
         
-        # Display in a code box for easy copying
-        st.write(f"**Strings for {customer}:**")
+        st.write(f"**Copy/Paste strings for {customer}:**")
         st.code("\n".join(strings), language="text")
 
 else:
-    st.info("Upload your Despatch Report to begin.")
+    st.info("👋 Awaiting file upload and customer selection...")
 
 # ==========================================
 # 🛑 THE BOUNCER (PASSWORD PROTECTION) 🛑
@@ -668,6 +665,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
