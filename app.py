@@ -1,8 +1,28 @@
 import streamlit as st
 import pandas as pd
 
-# 1. (Your existing code for file upload and sidebar filters goes here)
-# ...
+# 1. Look at your existing filter variable (likely df_selection or filtered_df)
+# I'll use 'df_selection' based on your previous images
+if 'df_selection' in locals() and not df_selection.empty:
+    
+    # --- AUTO-CLEAN DUPLICATES ---
+    # This fixes the re-despatch errors automatically
+    processed_df = df_selection.drop_duplicates(subset=['Customer Ref', 'Product Code'], keep='last')
+    
+    # --- CALCULATION FOR AUDIT ---
+    removed_count = len(df_selection) - len(processed_df)
+    if removed_count > 0:
+        st.info(f"💡 **Auto-Clean active:** Removed {removed_count} duplicate re-despatch lines.")
+
+    # --- THE SUMMARY TABLE (Right in the middle of your screen) ---
+    st.subheader("📦 Verified Order Totals")
+    summary = processed_df.groupby('Customer Ref')['Cases'].sum().reset_index()
+    summary.columns = ['Customer Reference', 'Total Cases']
+    st.table(summary) # This will now appear in the main body
+
+    # --- THE OUTPUT STRINGS ---
+    st.divider()
+    # (Rest of your string generation code here...)
 
 # 2. THE "BRAINS" - AUTO-CLEAN LOGIC
 if 'filtered_df' in locals() and not filtered_df.empty:
@@ -666,6 +686,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
+
 
 
 
