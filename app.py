@@ -29,7 +29,7 @@ if check_password():
     col_logo, col_title = st.columns([1, 10]) # [1, 10] keeps the logo column small
     with col_logo:
         # Make sure the file name perfectly matches the image in your folder!
-        st.image("logo.jpg", width=70) 
+        st.image("logo.jpg", width=120) 
     with col_title:
         st.title("SDS Portal Generator")
     
@@ -237,6 +237,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
