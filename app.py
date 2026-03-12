@@ -197,7 +197,8 @@ if check_password():
                 
                 st.subheader("📦 Verified Order Totals")
                 summary = df.groupby('Customer Ref')['Cases'].sum().reset_index()
-                st.table(summary)
+                # Set Customer Ref as the index to hide the useless number column
+                st.table(summary.set_index('Customer Ref'))
 
                 st.divider()
                 st.subheader("📋 SDS Portal Strings")
@@ -231,6 +232,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
