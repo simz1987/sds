@@ -41,8 +41,7 @@ if check_password():
         **Steps:**
         1. **Upload your CSV:** download your *Summary Despatch Report* from fops web and drag it into the box below.
         2. **Select your Depot:** Use the dropdown on the right to filter for specific depot orders.
-        3. **Check for Alarms:** If the app spots a brand-new product code it doesn't recognize, it will flash a red warning email logistics with codes to be added. 
-        4. **Copy & Paste:** Scroll down to the bottom, hover your mouse over the code boxes, and click the 'Copy' icon in the top right corner. Paste that directly into the SDS Portal!
+        3. **Copy & Paste:** Scroll down to the bottom, hover your mouse over the code boxes, and click the 'Copy' icon in the top right corner. Paste that directly into the SDS Portal!
         
         **Smart Features Built-In:**
         * **Double-Prints & Split Reprints:** The app automatically finds and deletes accidental duplicate loads.
@@ -135,21 +134,7 @@ if check_password():
                 df = df[df['Customer Ref'].str.startswith(depot_map[depot_choice], na=False)]
 
             if not df.empty:
-                # --- 🚨 NEW PRODUCT ALARM 🚨 ---
-                missing_codes = []
-                for code in df['Product Code'].unique():
-                    clean_code = str(code).strip()
-                    stripped_code = clean_code.lstrip('0') 
-                    
-                    if clean_code not in PRODUCT_MAPPING and stripped_code not in PRODUCT_MAPPING and clean_code != "506679":
-                        missing_codes.append(clean_code)
-                        
-                if missing_codes:
-                    st.error(f"🚨 **WARNING: {len(missing_codes)} UNKNOWN PRODUCT(S) DETECTED!** 🚨\n\n"
-                             f"These codes are not in your dictionary. The app has generated a temporary code for them, "
-                             f"but you should update your Master Dictionary in the code.\n\n"
-                             f"**Missing Codes:** {', '.join(missing_codes)}")
-
+                
                 # --- THE HYBRID BRAINS (Auto-Clean & Combine) ---
                 if auto_clean:
                     # Step A1: The Master-Load Assassin (Catches Split-Reprints)
@@ -237,6 +222,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
