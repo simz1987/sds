@@ -167,7 +167,7 @@ if check_password():
 
                     # Step A2: Delete exact double-prints
                     df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
-                 })
+                     })
 
                 # Create the numerical Sort_Load column
                 df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
@@ -232,5 +232,6 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
