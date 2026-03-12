@@ -31,8 +31,7 @@ if check_password():
     with st.expander("📖 How to use this Generator (Click to open)"):
         st.markdown("""
         **Welcome to the Automated SDS Portal Generator!**
-        This tool automatically cleans the warehouse dispatch data and formats it for the SDS Portal.
-        
+            
         **Steps:**
         1. **Upload your CSV:** download your *Summary Despatch Report* from fops web and drag it into the box below.
         2. **Select your Depot:** Use the dropdown on the right to filter for specific depot orders.
@@ -232,6 +231,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
