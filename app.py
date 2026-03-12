@@ -167,10 +167,7 @@ if check_password():
 
                     # Step A2: Delete exact double-prints
                     df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
-                    
-                    # Step B: Combine split loads (Add cases together)
-                    df = df.groupby(['Customer Ref', 'Product Code'], as_index=False).agg({
-                        'Cases': 'sum', 'Load': 'last', 'Time': 'last'
+             
                     })
 
                 # Create the numerical Sort_Load column
@@ -236,3 +233,4 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
