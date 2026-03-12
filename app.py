@@ -41,7 +41,7 @@ if check_password():
         **Steps:**
         1. **Upload your CSV:** download your *Summary Despatch Report* from fops web and drag it into the box below.
         2. **Select your Depot:** Use the dropdown on the right to filter for specific depot orders.
-        3. **Check for Alarms:** If the app spots a brand-new product code it doesn't recognize, it will flash a red warning email logistics with code to be added. 
+        3. **Check for Alarms:** If the app spots a brand-new product code it doesn't recognize, it will flash a red warning email logistics with codes to be added. 
         4. **Copy & Paste:** Scroll down to the bottom, hover your mouse over the code boxes, and click the 'Copy' icon in the top right corner. Paste that directly into the SDS Portal!
         
         **Smart Features Built-In:**
@@ -237,6 +237,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
