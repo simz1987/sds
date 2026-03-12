@@ -42,7 +42,7 @@ if check_password():
         **Smart Features Built-In:**
         * **Double-Prints & Split Reprints:** The app automatically finds and deletes accidental duplicate loads.
         * **Auto-Top-Up:** If genuine extra cases are added on a later load, the app automatically does the math and combines them.
-        * **Smart Trailers:** The app groups orders into physical trailers based on the time they were dispatched (default is a 45-minute gap).
+        * **Smart Trailers:** The app groups orders into physical trailers based on the time they were dispatched (default is a 30-minute gap).
         """)
 
     # ==========================================
@@ -92,7 +92,7 @@ if check_password():
     with col1:
         st.subheader("⚙️ Processing Settings")
         auto_clean = st.checkbox("Auto-Combine Split Loads & Duplicates", value=True)
-        trailer_gap = st.number_input("⏱️ Auto-Trailer Split Gap (Mins, 0=Off)", min_value=0, value=45)
+        trailer_gap = st.number_input("⏱️ Auto-Trailer Split Gap (Mins, 0=Off)", min_value=0, value=30)
     
     with col2:
         st.subheader("📍 Depot Filter")
@@ -231,6 +231,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
