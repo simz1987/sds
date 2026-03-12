@@ -127,15 +127,36 @@ if check_password():
                              f"but you should update your Master Dictionary as soon as possible.\n\n"
                              f"**Missing Codes:** {', '.join(missing_codes)}")
 
-                # --- THE HYBRID BRAINS (Auto-Clean & Combine) ---
+              # --- THE HYBRID BRAINS (Auto-Clean & Combine) ---
                 if auto_clean:
-                    # Step A: Delete exact double-prints
+                    # Step A1: The Master-Load Assassin (Catches Split-Reprints)
+                    import itertools
+                    load_totals = df.groupby(['Customer Ref', 'Load'], as_index=False)['Cases'].sum()
+                    loads_to_drop = []
+                    
+                    for cust, group in load_totals.groupby('Customer Ref'):
+                        totals_dict = dict(zip(group['Load'], group['Cases']))
+                        load_names = list(totals_dict.keys())
+                        
+                        # Check if any single load equals the exact sum of other loads
+                        for r in range(2, len(load_names) + 1):
+                            for combo in itertools.combinations(load_names, r):
+                                combo_sum = sum(totals_dict[l] for l in combo)
+                                for master_load, master_total in totals_dict.items():
+                                    if master_load not in combo and master_total == combo_sum:
+                                        loads_to_drop.append((cust, master_load))
+                    
+                    # Delete the phantom master loads from the data
+                    for cust, bad_load in loads_to_drop:
+                        df = df[~((df['Customer Ref'] == cust) & (df['Load'] == bad_load))]
+
+                    # Step A2: Delete exact double-prints
                     df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
+                    
                     # Step B: Combine split loads (Add cases together)
                     df = df.groupby(['Customer Ref', 'Product Code'], as_index=False).agg({
                         'Cases': 'sum', 'Load': 'last', 'Time': 'last'
                     })
-
                 # Create the numerical Sort_Load column
                 df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
 
@@ -203,6 +224,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
