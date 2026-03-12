@@ -25,7 +25,13 @@ def check_password():
     return True
 
 if check_password():
-    st.title("⚡ SDS Portal Generator")
+    # --- CUSTOM LOGO & TITLE ---
+    col_logo, col_title = st.columns([1, 10]) # [1, 10] keeps the logo column small
+    with col_logo:
+        # Make sure the file name perfectly matches the image in your folder!
+        st.image("logo.jpg", width=70) 
+    with col_title:
+        st.title("SDS Portal Generator")
     
     # --- INSTRUCTIONS SECTION ---
     with st.expander("📖 How to use this Generator (Click to open)"):
@@ -231,6 +237,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
