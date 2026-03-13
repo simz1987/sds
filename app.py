@@ -155,8 +155,14 @@ if check_password():
                     for cust, bad_load in loads_to_drop:
                         df = df[~((df['Customer Ref'] == cust) & (df['Load'] == bad_load))]
 
-                    # Step A2: Delete exact double-prints
-                    df = df.drop_duplicates(subset=['Customer Ref', 'Product Code', 'Cases'], keep='last')
+                   # Step A2: The Clone Assassin (Deletes Exact Duplicate Loads)
+                    load_sigs = df.groupby(['Customer Ref', 'Load']).apply(
+                        lambda x: str(tuple(sorted(zip(x['Product Code'], x['Cases']))))
+                    ).reset_index(name='Sig')
+                    
+                    dupe_loads = load_sigs[load_sigs.duplicated(subset=['Customer Ref', 'Sig'], keep='last')]
+                    for _, row in dupe_loads.iterrows():
+                        df = df[~((df['Customer Ref'] == row['Customer Ref']) & (df['Load'] == row['Load']))]
                  
                 # Create the numerical Sort_Load column
                 df['Sort_Load'] = pd.to_numeric(df['Load'], errors='coerce').fillna(0)
@@ -222,6 +228,7 @@ if check_password():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
 
