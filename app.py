@@ -217,7 +217,7 @@ if check_password():
                             if raw_prod in PRODUCT_MAPPING:
                                 p_code = PRODUCT_MAPPING[raw_prod]
                             else:
-                                p_code = PRODUCT_MAPPING.get(stripped_prod, f"{raw_prod.zfill(6)}01")
+                               p_code = PRODUCT_MAPPING.get(stripped_prod, f"{raw_prod.ljust(6, '0')}01")
                             p_cases = row['Cases']
                             
                         strings.append(f"'{row['Customer Ref']}|{p_code}|{p_cases}'")
